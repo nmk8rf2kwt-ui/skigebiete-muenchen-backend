@@ -1,35 +1,59 @@
-export default async function spitzingsee() {
-  const url = "https://www.alpenbahnen-spitzingsee.de/api/lifts";
+import express from "express";
+import cors from "cors";
 
-  const res = await fetch(url, {
-    headers: {
-      "user-agent": "Mozilla/5.0",
-      "accept": "application/json"
-    }
-  });
+import spitzingsee from "./parsers/spitzingsee.js";
+import sudelfeld from "./parsers/sudelfeld.js";
+import garmisch from "./parsers/garmisch.js";
 
-  const text = await res.text();
+const app = express();
+app.use(cors());
 
-  if (!text) {
-    throw new Error("Spitzingsee API returned empty response");
+const PORT = process.env.PORT || 10000;
+const CACHE_TTL = 60 * 60 * 1000; // 60 Minuten
+
+const cache = new Map();
+
+async function getCached(key, fetcher) {
+  const now = Date.now();
+  const cached = cache.get(key);
+
+  if (cached && now - cached.timestamp < CACHE_TTL) {
+    return cached.data;
   }
 
-  const lifts = JSON.parse(text);
-
-  if (!Array.isArray(lifts) || lifts.length === 0) {
-    throw new Error("Spitzingsee parsing returned zero lifts");
-  }
-
-  const liftsTotal = lifts.length;
-  const liftsOpen = lifts.filter(l => l.status === "OPEN").length;
-
-  return {
-    resort: "Spitzingsee",
-    slug: "spitzingsee",
-    liftsOpen,
-    liftsTotal,
-    source: "alpenbahnen-spitzingsee.de/api/lifts",
-    status: "parsed",
-    lastUpdated: new Date().toISOString()
-  };
+  const data = await fetcher();
+  cache.set(key, { data, timestamp: now });
+  return data;
 }
+
+// ---- ROUTES ----
+
+app.get("/api/lifts/spitzingsee", async (_, res) => {
+  try {
+    res.json(await getCached("spitzingsee", spitzingsee));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/lifts/sudelfeld", async (_, res) => {
+  try {
+    res.json(await getCached("sudelfeld", sudelfeld));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/lifts/garmisch", async (_, res) => {
+  try {
+    res.json(await getCached("garmisch", garmisch));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- START ----
+
+app.listen(PORT, () => {
+  console.log(`✅ Backend running on port ${PORT}`);
+});
