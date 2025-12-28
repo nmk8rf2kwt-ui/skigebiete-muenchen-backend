@@ -1,21 +1,3 @@
-# Node.js
-node_modules/
-
-# Environment variables
+node_modules
 .env
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# macOS
 .DS_Store
-**/.DS_Store
-
-# Editor / OS
-.vscode/
-.idea/
-
-# Optional: PM2 logs
-pm2.log
