@@ -6,6 +6,6 @@ export default async function brauneck() {
     liftsTotal: 8,
     source: "brauneck-bergbahn.de",
     status: "static",
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: new Date().toISOString()
   };
 }

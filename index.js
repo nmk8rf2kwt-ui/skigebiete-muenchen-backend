@@ -1,44 +1,35 @@
-import express from "express";
-import brauneck from "./parsers/brauneck.js";
-import spitzingsee from "./parsers/spitzingsee.js";
+export default async function spitzingsee() {
+  const url = "https://www.alpenbahnen-spitzingsee.de/api/lifts";
 
-const app = express();
-const PORT = process.env.PORT || 10000;
+  const res = await fetch(url, {
+    headers: {
+      "user-agent": "Mozilla/5.0",
+      "accept": "application/json"
+    }
+  });
 
-// In-Memory Cache
-const cache = {};
-const CACHE_TTL = 60 * 60 * 1000; // 60 Minuten
+  const text = await res.text();
 
-async function getCached(slug, parser) {
-  const now = Date.now();
-
-  if (cache[slug] && now - cache[slug].ts < CACHE_TTL) {
-    return cache[slug].data;
+  if (!text) {
+    throw new Error("Spitzingsee API returned empty response");
   }
 
-  const data = await parser();
-  cache[slug] = { data, ts: now };
-  return data;
+  const lifts = JSON.parse(text);
+
+  if (!Array.isArray(lifts) || lifts.length === 0) {
+    throw new Error("Spitzingsee parsing returned zero lifts");
+  }
+
+  const liftsTotal = lifts.length;
+  const liftsOpen = lifts.filter(l => l.status === "OPEN").length;
+
+  return {
+    resort: "Spitzingsee",
+    slug: "spitzingsee",
+    liftsOpen,
+    liftsTotal,
+    source: "alpenbahnen-spitzingsee.de/api/lifts",
+    status: "parsed",
+    lastUpdated: new Date().toISOString()
+  };
 }
-
-app.get("/api/lifts/brauneck", async (req, res) => {
-  try {
-    const data = await getCached("brauneck", brauneck);
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get("/api/lifts/spitzingsee", async (req, res) => {
-  try {
-    const data = await getCached("spitzingsee", spitzingsee);
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`✅ Backend running on port ${PORT}`);
-});

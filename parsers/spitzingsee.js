@@ -1,53 +1,32 @@
-import * as cheerio from "cheerio";
-
 export default async function spitzingsee() {
-  const url =
-    "https://www.alpenbahnen-spitzingsee.de/de/liftstatus.html";
+  const url = "https://www.alpenbahnen-spitzingsee.de/api/lifts";
 
   const res = await fetch(url, {
     headers: {
-      "User-Agent": "Mozilla/5.0",
-      "Accept-Language": "de-DE,de;q=0.9",
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error("Spitzingsee fetch failed");
-  }
-
-  const html = await res.text();
-  const $ = cheerio.load(html);
-
-  let liftsOpen = 0;
-  let liftsTotal = 0;
-
-  // Jede Tabellenzeile mit Status zählen
-  $("tr").each((_, el) => {
-    const row = $(el).text().toLowerCase();
-
-    if (
-      row.includes("lift") ||
-      row.includes("sesselbahn")
-    ) {
-      liftsTotal++;
-
-      if (row.includes("geöffnet")) {
-        liftsOpen++;
-      }
+      "user-agent": "skigebiete-muenchen-bot"
     }
   });
 
-  if (liftsTotal === 0) {
+  if (!res.ok) {
+    throw new Error("Spitzingsee API not reachable");
+  }
+
+  const lifts = await res.json();
+
+  if (!Array.isArray(lifts) || lifts.length === 0) {
     throw new Error("Spitzingsee parsing returned zero lifts");
   }
+
+  const liftsTotal = lifts.length;
+  const liftsOpen = lifts.filter(l => l.status === "OPEN").length;
 
   return {
     resort: "Spitzingsee",
     slug: "spitzingsee",
     liftsOpen,
     liftsTotal,
-    source: "alpenbahnen-spitzingsee.de",
+    source: "alpenbahnen-spitzingsee.de/api/lifts",
     status: "parsed",
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: new Date().toISOString()
   };
 }
