@@ -1,24 +1,18 @@
-// backend/parsers/spitzingsee.js
-import cheerio from "cheerio";
+import * as cheerio from "cheerio";
 
-/**
- * Live-Parser für Spitzingsee
- * Quelle: alpenbahnen-spitzingsee.de
- */
 export default async function spitzingsee() {
   const url =
     "https://www.alpenbahnen-spitzingsee.de/de/liftstatus.html";
 
   const res = await fetch(url, {
     headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X)",
+      "User-Agent": "Mozilla/5.0",
       "Accept-Language": "de-DE,de;q=0.9",
     },
   });
 
   if (!res.ok) {
-    throw new Error(`Spitzingsee fetch failed: ${res.status}`);
+    throw new Error("Spitzingsee fetch failed");
   }
 
   const html = await res.text();
@@ -27,34 +21,24 @@ export default async function spitzingsee() {
   let liftsOpen = 0;
   let liftsTotal = 0;
 
-  /**
-   * Liftstatus-Seite enthält Status-Texte
-   * Wir zählen jede Lift-Zeile
-   */
+  // Jede Tabellenzeile mit Status zählen
   $("tr").each((_, el) => {
-    const text = $(el).text().toLowerCase();
+    const row = $(el).text().toLowerCase();
 
     if (
-      text.includes("lift") ||
-      text.includes("bahn")
+      row.includes("lift") ||
+      row.includes("sesselbahn")
     ) {
-      if (
-        text.includes("geöffnet") ||
-        text.includes("in betrieb")
-      ) {
+      liftsTotal++;
+
+      if (row.includes("geöffnet")) {
         liftsOpen++;
-        liftsTotal++;
-      } else if (
-        text.includes("geschlossen") ||
-        text.includes("außer betrieb")
-      ) {
-        liftsTotal++;
       }
     }
   });
 
   if (liftsTotal === 0) {
-    throw new Error("Spitzingsee parsing failed");
+    throw new Error("Spitzingsee parsing returned zero lifts");
   }
 
   return {

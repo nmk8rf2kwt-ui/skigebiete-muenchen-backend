@@ -1,57 +1,42 @@
 import express from "express";
-import { brauneck } from "./parsers/brauneck.js";
-import { spitzingsee } from "./parsers/spitzingsee.js";
+import brauneck from "./parsers/brauneck.js";
+import spitzingsee from "./parsers/spitzingsee.js";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
-/* =========================
-   Cache (60 Minuten)
-========================= */
-const CACHE_TTL = 60 * 60 * 1000;
-const cache = new Map();
+// In-Memory Cache
+const cache = {};
+const CACHE_TTL = 60 * 60 * 1000; // 60 Minuten
 
-async function withCache(key, fn) {
+async function getCached(slug, parser) {
   const now = Date.now();
-  const cached = cache.get(key);
 
-  if (cached && now - cached.time < CACHE_TTL) {
-    return cached.data;
+  if (cache[slug] && now - cache[slug].ts < CACHE_TTL) {
+    return cache[slug].data;
   }
 
-  const data = await fn();
-  cache.set(key, { time: now, data });
+  const data = await parser();
+  cache[slug] = { data, ts: now };
   return data;
 }
 
-/* =========================
-   Normalizer
-========================= */
-function normalize({ resort, liftsOpen, liftsTotal, source, status }) {
-  return {
-    resort,
-    slug: resort.toLowerCase(),
-    lifts: {
-      open: liftsOpen,
-      total: liftsTotal
-    },
-    source,
-    status,
-    lastUpdated: new Date().toISOString()
-  };
-}
-
-/* =========================
-   Routes
-========================= */
-app.get("/api/lifts/brauneck", async (_, res) => {
-  const data = await withCache("brauneck", brauneck);
-  res.json(normalize(data));
+app.get("/api/lifts/brauneck", async (req, res) => {
+  try {
+    const data = await getCached("brauneck", brauneck);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.get("/api/lifts/spitzingsee", async (_, res) => {
-  const data = await withCache("spitzingsee", spitzingsee);
-  res.json(normalize(data));
+app.get("/api/lifts/spitzingsee", async (req, res) => {
+  try {
+    const data = await getCached("spitzingsee", spitzingsee);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.listen(PORT, () => {
