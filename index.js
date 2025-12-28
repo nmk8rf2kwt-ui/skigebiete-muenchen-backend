@@ -3,36 +3,50 @@ import cors from "cors";
 
 import { spitzingsee } from "./parsers/spitzingsee.js";
 import { brauneck } from "./parsers/brauneck.js";
+import { sudelfeld } from "./parsers/sudelfeld.js";
+import { garmisch } from "./parsers/garmisch.js";
 
 const app = express();
+app.use(cors());
+
 const PORT = process.env.PORT || 10000;
 
-app.use(cors());
-app.use(express.json());
-
-/* Health check */
+// Health check
 app.get("/", (req, res) => {
   res.json({ status: "ok", service: "skigebiete-backend" });
 });
 
-/* Lift APIs */
-app.get("/api/lifts/spitzingsee", async (req, res) => {
+// API
+app.get("/api/lifts/:resort", async (req, res) => {
   try {
-    const data = await spitzingsee();
-    res.json(data);
-  } catch (err) {
-    console.error("Spitzingsee error:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
+    const { resort } = req.params;
 
-app.get("/api/lifts/brauneck", async (req, res) => {
-  try {
-    const data = await brauneck();
-    res.json(data);
+    const parsers = {
+      spitzingsee,
+      brauneck,
+      sudelfeld,
+      garmisch
+    };
+
+    if (!parsers[resort]) {
+      return res.status(404).json({ error: "Unknown resort" });
+    }
+
+    const data = await parsers[resort]();
+
+    if (!data || data.liftsTotal === 0) {
+      return res.status(503).json({
+        error: `${resort} parsing returned zero lifts`
+      });
+    }
+
+    res.json({
+      ...data,
+      lastUpdated: new Date().toISOString()
+    });
   } catch (err) {
-    console.error("Brauneck error:", err);
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: "Internal parser error" });
   }
 });
 
