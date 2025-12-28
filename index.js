@@ -5,45 +5,53 @@ import { spitzingsee } from "./parsers/spitzingsee.js";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-/**
- * Health Check
- */
-app.get("/", (req, res) => {
-  res.json({
-    status: "ok",
-    service: "skigebiete-muenchen-backend",
-    timestamp: new Date().toISOString()
-  });
+/* =========================
+   Cache (60 Minuten)
+========================= */
+const CACHE_TTL = 60 * 60 * 1000;
+const cache = new Map();
+
+async function withCache(key, fn) {
+  const now = Date.now();
+  const cached = cache.get(key);
+
+  if (cached && now - cached.time < CACHE_TTL) {
+    return cached.data;
+  }
+
+  const data = await fn();
+  cache.set(key, { time: now, data });
+  return data;
+}
+
+/* =========================
+   Normalizer
+========================= */
+function normalize({ resort, liftsOpen, liftsTotal, source, status }) {
+  return {
+    resort,
+    slug: resort.toLowerCase(),
+    lifts: {
+      open: liftsOpen,
+      total: liftsTotal
+    },
+    source,
+    status,
+    lastUpdated: new Date().toISOString()
+  };
+}
+
+/* =========================
+   Routes
+========================= */
+app.get("/api/lifts/brauneck", async (_, res) => {
+  const data = await withCache("brauneck", brauneck);
+  res.json(normalize(data));
 });
 
-/**
- * Brauneck
- */
-app.get("/api/lifts/brauneck", async (req, res) => {
-  try {
-    const data = await brauneck();
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({
-      error: "brauneck_failed",
-      message: err.message
-    });
-  }
-});
-
-/**
- * Spitzingsee
- */
-app.get("/api/lifts/spitzingsee", async (req, res) => {
-  try {
-    const data = await spitzingsee();
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({
-      error: "spitzingsee_failed",
-      message: err.message
-    });
-  }
+app.get("/api/lifts/spitzingsee", async (_, res) => {
+  const data = await withCache("spitzingsee", spitzingsee);
+  res.json(normalize(data));
 });
 
 app.listen(PORT, () => {
