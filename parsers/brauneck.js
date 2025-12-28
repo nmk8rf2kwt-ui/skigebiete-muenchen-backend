@@ -1,34 +1,36 @@
-// parsers/brauneck.js
-import fetch from "node-fetch";
-import * as cheerio from "cheerio";
+import { load } from "cheerio";
 
-export default async function brauneck() {
-  const url = "https://www.brauneck-bergbahn.de/de/lift-pistenstatus.html";
-  const res = await fetch(url);
+const URL = "https://www.brauneck-bergbahn.de/de/lift-pistenstatus.html";
+
+export async function brauneck() {
+  const res = await fetch(URL);
+  if (!res.ok) throw new Error("Failed to fetch Brauneck");
+
   const html = await res.text();
+  const $ = load(html);
 
-  const $ = cheerio.load(html);
+  let liftsTotal = 0;
+  let liftsOpen = 0;
 
-  let open = 0;
-  let total = 0;
+  $(".liftstatus-table tbody tr").each((_, row) => {
+    liftsTotal++;
 
-  $(".liftstatus table tbody tr").each((_, row) => {
-    total++;
-    const status = $(row).find("td").eq(1).text().toLowerCase();
-    if (status.includes("offen")) open++;
+    const status = $(row).find(".status").text().toLowerCase();
+    if (status.includes("offen") || status.includes("geöffnet")) {
+      liftsOpen++;
+    }
   });
 
-  if (total === 0) {
+  if (liftsTotal === 0) {
     throw new Error("Brauneck parsing returned zero lifts");
   }
 
   return {
-    resort: "Brauneck / Lenggries",
-    slug: "brauneck",
-    liftsOpen: open,
-    liftsTotal: total,
+    resort: "Brauneck",
+    liftsOpen,
+    liftsTotal,
     source: "brauneck-bergbahn.de",
-    status: "parsed",
+    status: "website",
     lastUpdated: new Date().toISOString()
   };
 }

@@ -1,40 +1,41 @@
-// index.js
 import express from "express";
 import cors from "cors";
 
-import spitzingsee from "./parsers/spitzingsee.js";
-import brauneck from "./parsers/brauneck.js";
+import { spitzingsee } from "./parsers/spitzingsee.js";
+import { brauneck } from "./parsers/brauneck.js";
 
 const app = express();
+const PORT = process.env.PORT || 10000;
+
 app.use(cors());
+app.use(express.json());
 
-const parsers = {
-  spitzingsee,
-  brauneck
-};
+/* Health check */
+app.get("/", (req, res) => {
+  res.json({ status: "ok", service: "skigebiete-backend" });
+});
 
-app.get("/api/lifts/:slug", async (req, res) => {
-  const { slug } = req.params;
-  const parser = parsers[slug];
-
-  if (!parser) {
-    return res.status(404).json({ error: "unknown_resort" });
-  }
-
+/* Lift APIs */
+app.get("/api/lifts/spitzingsee", async (req, res) => {
   try {
-    const data = await parser();
+    const data = await spitzingsee();
     res.json(data);
   } catch (err) {
-    console.error(slug, err.message);
-    res.status(500).json({
-      error: "parser_failed",
-      slug,
-      message: err.message
-    });
+    console.error("Spitzingsee error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-const PORT = process.env.PORT || 10000;
+app.get("/api/lifts/brauneck", async (req, res) => {
+  try {
+    const data = await brauneck();
+    res.json(data);
+  } catch (err) {
+    console.error("Brauneck error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`✅ Backend running on port ${PORT}`);
 });
