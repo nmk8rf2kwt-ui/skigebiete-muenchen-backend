@@ -1,28 +1,33 @@
-import cheerio from "cheerio";
+import * as cheerio from "cheerio";
 
-export async function spitzingsee() {
-  const url = "https://www.alpenbahnen-spitzingsee.de/de/liftstatus.html";
-  const res = await fetch(url);
-  const html = await res.text();
-
+export async function spitzingsee(html) {
   const $ = cheerio.load(html);
 
-  let total = 0;
-  let open = 0;
+  const rows = $("table tr");
+  let liftsTotal = 0;
+  let liftsOpen = 0;
 
-  $("table tbody tr").each((_, row) => {
-    const status = $(row).find("td").first().text().toLowerCase();
-    if (!status) return;
+  rows.each((_, row) => {
+    const statusText = $(row).text().toLowerCase();
 
-    total++;
-    if (status.includes("geöffnet")) open++;
+    if (statusText.includes("lift")) {
+      liftsTotal++;
+      if (statusText.includes("geöffnet")) {
+        liftsOpen++;
+      }
+    }
   });
+
+  if (liftsTotal === 0) {
+    throw new Error("Spitzingsee parsing returned zero lifts");
+  }
 
   return {
     resort: "Spitzingsee",
-    liftsOpen: open,
-    liftsTotal: total,
+    liftsOpen,
+    liftsTotal,
     source: "alpenbahnen-spitzingsee.de",
-    status: "website"
+    status: "ok",
+    lastUpdated: new Date().toISOString()
   };
 }

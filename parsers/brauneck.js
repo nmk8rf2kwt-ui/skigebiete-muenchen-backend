@@ -1,4 +1,4 @@
-import { load } from "cheerio";
+import * as cheerio from "cheerio";
 
 const URL = "https://www.brauneck-bergbahn.de/de/lift-pistenstatus.html";
 
