@@ -6,7 +6,7 @@ import cheerio from "cheerio";
  */
 export default async function spitzingsee() {
   const url =
-    "https://www.alpenbahnen-spitzingsee.de/winter/skigebiet/lifte-pisten/";
+    "https://www.alpenbahnen-spitzingsee.de/de/pistenstatus.html";
 
   const res = await fetch(url, {
     headers: {
